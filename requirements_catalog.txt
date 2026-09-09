@@ -1,5 +1,37 @@
-streamlit>=1.30.0
-pandas>=2.0.0
-sqlalchemy>=2.0.0
-dnspython>=2.5.0
-openpyxl>=3.1.0
+# Data Catalog & Profiler — MANIFESTO OFICIAL DA APLICAÇÃO
+#
+# Este é o ÚNICO manifesto de dependências do app (Streamlit em `src/`).
+# Instalação: pip install -r requirements_catalog.txt   (ver README.md)
+#
+# NÃO confundir com `requirements-aiox-tooling.txt`, que declara o tooling
+# de IA/MCP do repositório e NÃO é usado pelo app (ver README.md § Manifestos).
+#
+# Regra desta lista (Story 6.2 AC6): todo pacote aqui tem uso real no código —
+# import direto em `src/` ou engine exigida em runtime. Nada é declarado "por via das dúvidas".
+#
+# Pisos de versão: escolhidos como a primeira release com wheel binária
+# `cp314-win_amd64` publicada no PyPI, porque o ambiente-alvo é Windows + Python 3.14
+# e numpy/scikit-learn/pandas têm extensões compiladas (sem wheel, o pip tentaria
+# compilar do source e falharia). Python mínimo suportado: 3.11 (imposto por numpy>=2.3.2).
+# Sem upper bounds: o resolver do pip harmoniza as versões (scikit-learn puxa scipy/joblib).
+
+# --- UI / execução ---
+streamlit>=1.30.0            # src/app.py:1
+
+# --- Dados / banco ---
+pandas>=2.3.3                # src/app.py:2, src/core/db_manager.py:2, src/core/profiler.py:1, src/core/deduplicator.py:1
+sqlalchemy>=2.0.0            # src/core/db_manager.py:1
+openpyxl>=3.1.0              # engine de escrita .xlsx exigida em runtime: src/app.py:136,194 (pd.ExcelWriter(engine='openpyxl'))
+
+# --- Deduplicação (src/core/deduplicator.py) ---
+numpy>=2.3.2                 # src/core/deduplicator.py:2
+scikit-learn>=1.7.2          # src/core/deduplicator.py:3-4 (TfidfVectorizer, cosine_similarity)
+rapidfuzz>=3.14.0            # src/core/deduplicator.py:5 — import executado no carregamento do módulo; `fuzz` ainda não é chamado. PENDENTE DE REVISÃO NA STORY 6.1: se a 6.1 remover o import morto, este pacote sai daqui.
+
+# --- Validação ---
+dnspython>=2.5.0             # src/validators/email_val.py:2 (import dns.resolver)
+
+# Drivers de banco são OPCIONAIS e dependem do destino de conexão — não são
+# importados pelo código e por isso não entram neste manifesto (AC6).
+# Ex.: SQL Server (`mssql+pyodbc://...`, sugerido em src/app.py:25) exige `pip install pyodbc`
+# + ODBC Driver 17/18 instalado no SO. SQLite (padrão) não exige nada.

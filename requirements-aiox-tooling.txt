@@ -1,0 +1,14 @@
+# TOOLING DE IA/MCP DO REPOSITÓRIO — NÃO É O MANIFESTO DO APP.
+#
+# Origem: era o antigo `requirements.txt` na raiz. Renomeado na Story 6.2 (AC3)
+# porque o nome padrão `requirements.txt` fazia qualquer pessoa clonando o repo
+# rodar `pip install -r requirements.txt` e obter um ambiente SEM as dependências
+# do Data Catalog & Profiler — o app quebrava com ImportError.
+#
+# Nenhum pacote deste arquivo é importado em `src/` (auditoria da Story 6.2, Task 1).
+# Serve apenas ao tooling de agentes/MCP que acompanha o repositório.
+#
+# >>> Para rodar o app use: pip install -r requirements_catalog.txt  (ver README.md) <<<
+
+anthropic>=0.39.0
+mcp>=1.1.0

@@ -18,7 +18,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          # Piso de Python suportado pelo manifesto (numpy>=2.3.2 exige >=3.11).
+          # Rodar o CI no piso valida a versão mínima declarada no README.
+          python-version: '3.11'
           cache: 'pip'
 
       - name: Install dependencies
