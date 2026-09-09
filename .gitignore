@@ -1,0 +1,33 @@
+# Ambientes virtuais
+venv/
+env/
+.env
+
+# Arquivos de banco de dados locais
+*.db
+*.sqlite
+*.sqlite3
+metadata.db
+
+# Arquivos de exportação locais (não versionar dados sensíveis)
+*.xlsx
+*.csv
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Dependencias Node (AIOX core, tooling)
+node_modules/
+.npm/
+npm-debug.log*
+yarn-error.log*
+
+# IDE e sistema
+.vscode/
+.idea/
+.DS_Store
+*.log
+Thumbs.db
