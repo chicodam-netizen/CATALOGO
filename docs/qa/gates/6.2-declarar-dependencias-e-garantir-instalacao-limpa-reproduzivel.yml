@@ -1,0 +1,219 @@
+schema: 1
+story: '6.2'
+story_title: 'Declarar dependências e garantir instalação limpa reproduzível'
+gate: CONCERNS
+status_reason: >-
+  Manifesto auditado e corrigido com evidência verificável (auditoria de imports e pisos de
+  versão reproduzidos de forma independente), mas os pisos legados de streamlit/dnspython
+  ainda admitem versões com vulnerabilidades conhecidas e a AC4 permanece parcial (comando
+  literal `streamlit run` continua quebrado e falta a reprodução por segunda pessoa).
+reviewer: 'Quinn (@qa)'
+reviewed_revision: 'commit:1be4334'
+updated: '2026-09-09T00:00:00Z'
+
+top_issues:
+  - id: 'SEC-001'
+    severity: medium
+    category: security
+    finding: >-
+      Os pisos pré-existentes não foram reavaliados quanto a vulnerabilidades. Consulta OSV.dev
+      no piso declarado: `streamlit>=1.30.0` admite 6 vulnerabilidades conhecidas, entre elas
+      GHSA-7p48-42j8-8846 (SSRF não autenticado com exposição de credencial NTLM no Windows,
+      corrigido em 1.54.0) e GHSA-rxff-vr5r-8cj5 (path traversal no Windows, corrigido em 1.37.0)
+      — o ambiente-alvo declarado no README é justamente Windows. `dnspython>=2.5.0` admite
+      GHSA-3rq5-2g8h-59hc / PYSEC-2026-1307 (DoS via mecanismo Tudoor, corrigido em 2.6.1).
+      Os pisos adicionados nesta story (numpy, scikit-learn, rapidfuzz, pandas) estão limpos no OSV.
+    suggested_action: >-
+      Elevar `streamlit` para `>=1.54.0` e `dnspython` para `>=2.6.1`. Risco atualmente latente
+      (um `pip install` hoje resolve para streamlit 1.63.0 / dnspython 2.8.0), materializa-se
+      quando o resolver for restringido por Python mais antigo, constraints ou lockfile.
+  - id: 'REQ-001'
+    severity: medium
+    category: requirements
+    finding: >-
+      A AC4 exige, literalmente, `pip install -r <manifesto>` seguido de `streamlit run`. O comando
+      literal continua quebrando com `ModuleNotFoundError: No module named 'src'` em instalação
+      limpa. Diagnóstico do @dev confirmado de forma independente na fonte do venv
+      (`streamlit.web.bootstrap._fix_sys_path` faz apenas `sys.path.insert(0, os.path.dirname(main_script_path))`,
+      inserindo `src/` e nunca a raiz). Não é defeito de manifesto, e a correção exigiria mexer em
+      código de aplicação (fora do escopo). Resolvido por documentação (`python -m streamlit run src/app.py`),
+      mas o débito residual foi apenas citado nas Completion Notes, sem item rastreável em backlog.
+    suggested_action: >-
+      Registrar o item de path/empacotamento (`pyproject.toml` ou bootstrap de `sys.path`) como
+      backlog explícito para a Story 6.1/6.3 — a 6.3 esbarrará no mesmo tema ao rodar `pytest`
+      a partir da raiz. Manter a documentação atual como mitigação no ínterim.
+  - id: 'REQ-002'
+    severity: low
+    category: requirements
+    finding: >-
+      Cláusula final da AC4 — "O procedimento é documentado e reproduzido por outra pessoa que não
+      a autora" — não satisfeita. O @dev declarou explicitamente a limitação (não pode ser cumprida
+      por um agente); o procedimento está documentado ponta a ponta no README §5.
+    suggested_action: >-
+      Atestação humana pendente: uma segunda pessoa deve executar o README §5 em clone limpo antes
+      do fechamento definitivo do Epic 6. Não bloqueia o push desta story.
+  - id: 'MNT-001'
+    severity: low
+    category: code
+    finding: >-
+      Divergência entre o mínimo declarado e o mínimo testado. O README declara suporte a
+      "Python 3.11 a 3.14" e o manifesto declara `pandas>=2.3.3` (linha pandas 2.x), mas a validação
+      funcional (AC4) ocorreu somente em Python 3.14.3 com pandas 3.0.5 — uma major diferente.
+      O CI em 3.11 executa apenas `flake8`, sem nenhum teste funcional, então o piso declarado nunca
+      é exercitado de fato.
+    suggested_action: >-
+      Após a Story 6.3, rodar a baseline de testes em matriz (3.11 e 3.14) no CI, ou reduzir a
+      afirmação de suporte do README ao que foi efetivamente exercitado.
+  - id: 'TEST-001'
+    severity: low
+    category: tests
+    finding: >-
+      Não há regressão automatizada para o que esta story corrige — a evidência da AC4 é um script
+      ad-hoc de `streamlit.testing.v1.AppTest` executado uma vez, não versionado no repositório.
+    suggested_action: >-
+      Esperado e aceito: a baseline de testes é o objeto da Story 6.3, cujo smoke test de import
+      (6.3 AC4) se tornará a regressão desta story. Sem ação nesta story.
+
+waiver: { active: false }
+
+quality_checks:
+  code_review:
+    result: PASS
+    notes: >-
+      Nenhum código de aplicação alterado — `git show 1be4334 --stat -- src/` retorna vazio,
+      confirmando a afirmação do @dev e preservando o escopo da Story 1.3 (vetorização do profiler).
+      Manifesto com rastreabilidade arquivo:linha por pacote, cabeçalhos explicativos em ambos os
+      manifestos e comentário inline no `ci.yml` justificando o piso. Comentários conferidos contra
+      o código: nenhuma imprecisão encontrada.
+  unit_tests:
+    result: N/A_BY_DESIGN
+    notes: >-
+      Não existe framework de testes no projeto — é exatamente o objeto da Story 6.3, ainda não
+      implementada. Não constitui falha desta story. Gate bloqueante de lint do CI reproduzido por
+      mim: `flake8 src --count --select=E9,F63,F7,F82` → 0 ocorrências, exit 0. Smoke de import dos
+      8 módulos de `src/` no venv do projeto → "imports OK".
+  acceptance_criteria:
+    result: PARTIAL
+    notes: >-
+      AC1 PASS · AC2 PASS · AC3 PASS · AC4 PARCIAL (REQ-001, REQ-002) · AC5 PASS · AC6 PASS.
+      Detalhamento na tabela de rastreabilidade abaixo.
+  regressions:
+    result: PASS
+    notes: >-
+      Zero alteração em `src/`. Árvore de trabalho limpa. `.github/workflows/ci.yml` 3.10 → 3.11
+      verificado como consequência obrigatória, NÃO scope creep: `numpy` 2.3.2 declara
+      `requires_python >=3.11` (confirmado na API do PyPI), e todas as releases posteriores mantêm
+      esse piso — em Python 3.10 o próprio CI falharia com "No matching distribution found for numpy>=2.3.2".
+  performance:
+    result: N/A
+    notes: 'Story de manifesto/documentação, sem caminho de execução alterado. Ver MNT-001.'
+  security:
+    result: CONCERNS
+    notes: 'Ver SEC-001. Pisos novos limpos no OSV; pisos legados não reavaliados.'
+  documentation:
+    result: PASS
+    notes: >-
+      README.md criado cobrindo requisitos, distinção entre os dois manifestos, setup Windows/Linux,
+      comando de execução com a justificativa do `python -m`, procedimento reproduzível de instalação
+      limpa e a armadilha de MAX_PATH do Windows. Suprime a AC5 com folga.
+
+evidence_verification:
+  independent_checks_performed:
+    - check: 'Auditoria de imports refeita do zero'
+      method: 'grep -rnE "^\s*(import|from)\s+" src/ --include="*.py" sobre os 9 arquivos .py'
+      result: >-
+        Bate exatamente com a tabela do Dev Agent Record. Terceiros = streamlit, pandas, sqlalchemy,
+        numpy, sklearn, rapidfuzz, dns.resolver. `openpyxl` confirmado como engine de runtime em
+        src/app.py:136 e 194 (`pd.ExcelWriter(..., engine='openpyxl')`), sem import — declaração
+        correta. `pyodbc` aparece apenas como texto de help em src/app.py:25, nunca importado —
+        exclusão correta pela AC6. Discrepâncias remanescentes: 0.
+    - check: 'Plausibilidade dos pisos de versão (wheel win_amd64) — solicitado explicitamente'
+      method: 'Consulta à API JSON do PyPI por release, contando wheels cp314-*-win_amd64'
+      result: >-
+        CONFIRMADO em todos os quatro casos, incluindo o teste negativo (a release imediatamente
+        anterior não tem wheel): numpy 2.3.2 = 1 wheel / 2.3.1 = 0 (requires_python >=3.11);
+        scikit-learn 1.7.2 = 1 / 1.7.1 = 0; rapidfuzz 3.14.0 = 1; pandas 2.3.3 = 1 / 2.3.2 = 0.
+        Cada piso declarado é, de fato, a primeira release com wheel binária cp314-win_amd64.
+        A evidência documentada pelo @dev é genuína, não uma afirmação sem lastro.
+    - check: 'Resolubilidade do manifesto no ambiente de CI (Linux + cp311)'
+      method: 'Enumeração de wheels cp311 linux x86_64 por release no PyPI'
+      result: >-
+        Resolve com wheels binárias: pandas 3.0.5, numpy 2.4.6 (a maior numpy que ainda publica
+        cp311 — 2.5.x exige >=3.12), scikit-learn 1.9.0, rapidfuzz 3.14.6. Coincide exatamente com o
+        dry-run reportado pelo @dev no item 7 do Debug Log. O CI ajustado para 3.11 não quebra.
+    - check: 'Causa raiz da quebra de `streamlit run`'
+      method: 'inspect.getsource(streamlit.web.bootstrap._fix_sys_path) no venv do projeto'
+      result: >-
+        Confirmado literalmente: `sys.path.insert(0, os.path.dirname(main_script_path))`. Insere
+        apenas `src/`, jamais a raiz. O diagnóstico do @dev está correto e não é defeito de manifesto.
+    - check: 'Import morto de rapidfuzz'
+      method: 'flake8 src --exit-zero'
+      result: >-
+        `F401 rapidfuzz.fuzz imported but unused` (2 ocorrências) — corrobora de forma independente
+        a decisão "RESOLVIDO — AC1 × AC6": o pacote é executado no carregamento do módulo e precisa
+        estar declarado, e a remoção do import é escopo da Story 6.1. Decisão do @po aplicada
+        corretamente, com o comentário de rastreio presente no manifesto.
+    - check: 'Indisponibilidade do CodeRabbit'
+      method: "wsl bash -c 'echo wsl-ok'"
+      result: '`/bin/sh: bash: not found` — degradação graciosa do item 9 do Debug Log confirmada.'
+    - check: 'Renomeação sem resíduo (AC3)'
+      method: 'git show do diff + listagem da raiz'
+      result: >-
+        `requirements.txt` deletado, `requirements-aiox-tooling.txt` criado com conteúdo preservado
+        + cabeçalho. Nenhum `requirements.txt` remanescente na raiz. `ci.yml:29` consome
+        `requirements_catalog.txt`. Um único manifesto de aplicação.
+
+requirements_traceability:
+  - ac: 1
+    result: PASS
+    evidence: >-
+      `numpy>=2.3.2`, `scikit-learn>=1.7.2`, `rapidfuzz>=3.14.0` declarados; piso de `pandas`
+      elevado de `>=2.0.0` para `>=2.3.3`. Todos com versão mínima e comentário arquivo:linha.
+  - ac: 2
+    result: PASS
+    evidence: >-
+      Auditoria refeita de forma independente pelo QA; tabela do Dev Agent Record confere item a item.
+      3 discrepâncias reportadas, 3 corrigidas, 0 remanescentes.
+  - ac: 3
+    result: PASS
+    evidence: >-
+      Ambiguidade eliminada mecanicamente (o nome `requirements.txt` deixou de existir na raiz),
+      não apenas documentalmente. Escolha de renomear em vez de apagar é justificada e verificável.
+  - ac: 4
+    result: PARTIAL
+    evidence: >-
+      Substância técnica comprovada: 47 pacotes por wheel binária em venv novo, duas telas
+      navegadas via `streamlit.testing.v1.AppTest`, `ModuleNotFoundError` reproduzido ao desinstalar
+      `rapidfuzz`. Pendências: comando literal `streamlit run` da AC (REQ-001) e reprodução por
+      segunda pessoa (REQ-002).
+  - ac: 5
+    result: PASS
+    evidence: 'README §1 (Python 3.11-3.14), §3 (venv Windows/Linux), §4 (execução), §5 (verificação).'
+  - ac: 6
+    result: PASS
+    evidence: >-
+      Nenhum pacote declarado sem uso real. Transitivas (scipy/joblib/threadpoolctl) corretamente
+      omitidas; `pyodbc` corretamente excluído e documentado como opcional.
+
+scope_assessment:
+  ci_python_bump:
+    verdict: IN_SCOPE
+    rationale: >-
+      Consequência técnica obrigatória da AC1, não scope creep. Verificado: numpy 2.3.2 exige
+      Python >=3.11; manter o CI em 3.10 tornaria o próprio `pip install -r requirements_catalog.txt`
+      do workflow insatisfazível. A mudança é de 2 linhas + comentário, confinada ao campo
+      `python-version`, e alinha o CI ao piso documentado no README.
+  application_code_untouched:
+    verdict: CONFIRMED
+    rationale: >-
+      `git show 1be4334 --stat -- src/` vazio. Nenhuma antecipação de comportamento da Story 1.3
+      (vetorização do profiler) nem da 6.1 (remoção do import morto).
+  executor_deviation:
+    verdict: OBSERVATION_ONLY
+    rationale: >-
+      Frontmatter designa `executor: @devops` e `quality_gate: @architect`; executada por @dev e
+      gate por @qa. O @dev justificou a substituição (nenhuma operação exclusiva de @devops foi
+      realizada; `git push` segue com @devops) e a alteração de gate foi determinada pelo lead.
+      Sem impacto na qualidade do entregável; registrado para rastreabilidade de processo.
+
+recommended_status: 'Done — com os itens SEC-001 e REQ-001 endereçados nas stories 6.1/6.3 ou em backlog'

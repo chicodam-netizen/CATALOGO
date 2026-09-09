@@ -9,14 +9,28 @@
 # Regra desta lista (Story 6.2 AC6): todo pacote aqui tem uso real no código —
 # import direto em `src/` ou engine exigida em runtime. Nada é declarado "por via das dúvidas".
 #
-# Pisos de versão: escolhidos como a primeira release com wheel binária
-# `cp314-win_amd64` publicada no PyPI, porque o ambiente-alvo é Windows + Python 3.14
+# Pisos de versão (pacotes compilados): escolhidos como a primeira release com wheel
+# binária `cp314-win_amd64` publicada no PyPI, porque o ambiente-alvo é Windows + Python 3.14
 # e numpy/scikit-learn/pandas têm extensões compiladas (sem wheel, o pip tentaria
 # compilar do source e falharia). Python mínimo suportado: 3.11 (imposto por numpy>=2.3.2).
 # Sem upper bounds: o resolver do pip harmoniza as versões (scikit-learn puxa scipy/joblib).
+#
+# Pisos de versão (pacotes pure-Python): quando o pacote não tem extensão compilada,
+# o critério de wheel binária não se aplica — a wheel publicada é universal
+# (`py3-none-any`, serve qualquer plataforma/CPython). Nesses casos o piso é ditado
+# pela primeira release sem vulnerabilidade conhecida (ver SEC-001, Story 6.2 QA gate).
 
 # --- UI / execução ---
-streamlit>=1.30.0            # src/app.py:1
+streamlit>=1.54.0            # src/app.py:1
+                             # Piso elevado de >=1.30.0 (SEC-001 do QA gate da Story 6.2):
+                             # CVE-2026-33682 / GHSA-7p48-42j8-8846 — SSRF não autenticado que,
+                             # NO WINDOWS, resolve caminho UNC e vaza credencial NTLM via SMB;
+                             # corrigido em 1.54.0. O piso também cobre GHSA-rxff-vr5r-8cj5
+                             # (path traversal no Windows, corrigido em 1.37.0). Ambiente-alvo
+                             # deste projeto é Windows — risco direto, não teórico.
+                             # Wheel: pure-Python (streamlit-1.54.0-py3-none-any.whl, universal) —
+                             # não requer wheel cp3xx-win_amd64. requires_python >=3.10, compatível
+                             # com o piso 3.11 do projeto.
 
 # --- Dados / banco ---
 pandas>=2.3.3                # src/app.py:2, src/core/db_manager.py:2, src/core/profiler.py:1, src/core/deduplicator.py:1
@@ -29,7 +43,13 @@ scikit-learn>=1.7.2          # src/core/deduplicator.py:3-4 (TfidfVectorizer, co
 rapidfuzz>=3.14.0            # src/core/deduplicator.py:5 — import executado no carregamento do módulo; `fuzz` ainda não é chamado. PENDENTE DE REVISÃO NA STORY 6.1: se a 6.1 remover o import morto, este pacote sai daqui.
 
 # --- Validação ---
-dnspython>=2.5.0             # src/validators/email_val.py:2 (import dns.resolver)
+dnspython>=2.6.1             # src/validators/email_val.py:2 (import dns.resolver)
+                             # Piso elevado de >=2.5.0 (SEC-001 do QA gate da Story 6.2):
+                             # CVE-2023-29483 / GHSA-3rq5-2g8h-59hc — DoS no resolver stub
+                             # (ataque "TuDoor"); corrigido definitivamente em 2.6.1 (a 2.6.0
+                             # trouxe regressão). Wheel: pure-Python
+                             # (dnspython-2.6.1-py3-none-any.whl, universal) — não requer wheel
+                             # cp3xx-win_amd64. requires_python >=3.8, compatível com o piso 3.11.
 
 # Drivers de banco são OPCIONAIS e dependem do destino de conexão — não são
 # importados pelo código e por isso não entram neste manifesto (AC6).
