@@ -31,3 +31,7 @@ yarn-error.log*
 .DS_Store
 *.log
 Thumbs.db
+
+# Memória de agente com detalhes operacionais locais (auth, layout de repo pai)
+# — não deve ir para um repositório público. Demais agent-memory/* seguem versionados.
+.claude/agent-memory/aiox-devops/
